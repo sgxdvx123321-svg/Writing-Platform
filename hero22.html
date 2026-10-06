@@ -1179,10 +1179,10 @@
         
         <!-- 模式切換器 -->
         <div class="mode-switcher">
-            <button class="mode-btn active" id="textModeBtn" onclick="switchMode('text')">📝 文本模式</button>
-            <button class="mode-btn" id="mindmapModeBtn" onclick="switchMode('mindmap')">🧠 腦圖模式</button>
-            <button class="mode-btn" id="focusModeBtn" onclick="toggleFocusMode()">🎯 專注模式</button>
-            <button class="mode-btn" id="analyticsBtn" onclick="showAnalytics()">📊 寫作統計</button>
+            <button class="mode-btn active" id="textModeBtn">📝 文本模式</button>
+            <button class="mode-btn" id="mindmapModeBtn">🧠 腦圖模式</button>
+            <button class="mode-btn" id="focusModeBtn">🎯 專注模式</button>
+            <button class="mode-btn" id="analyticsBtn">📊 寫作統計</button>
         </div>
         
         <!-- 寫作統計與分析 -->
@@ -1222,7 +1222,7 @@
                 </div>
             </div>
             
-            <button class="btn-primary" onclick="hideAnalytics()">返回寫作</button>
+            <button class="btn-primary" id="hideAnalyticsBtn">返回寫作</button>
         </div>
         
         <!-- 引用管理 -->
@@ -1978,6 +1978,7 @@
         function initApp() {
             loadState();
             setupEventListeners();
+            convertOnclickToEventListeners(); // 自動轉換 onclick 為 addEventListener
             updateUI();
             // checkDailyCompletion(); // 已移除強制鎖定
             initializeCategories();
@@ -2505,6 +2506,55 @@
         // 儲存腦圖範本到localStorage
         function saveTemplates(templates) {
             SecureStorage.setItem('mindmapTemplates', JSON.stringify(templates));
+        }
+
+        // 自動將所有 onclick 轉換為 addEventListener（兼容 CSP）
+        function convertOnclickToEventListeners() {
+            const elementsWithOnclick = document.querySelectorAll('[onclick]');
+            
+            elementsWithOnclick.forEach(element => {
+                const onclickCode = element.getAttribute('onclick');
+                if (!onclickCode) return;
+                
+                // 提取函數名和參數
+                const match = onclickCode.match(/^(\w+)\((.*)\)$/);
+                if (!match) return;
+                
+                const functionName = match[1];
+                const args = match[2];
+                
+                // 檢查函數是否存在
+                if (typeof window[functionName] === 'function') {
+                    // 創建事件處理器
+                    element.addEventListener('click', function(event) {
+                        // 處理參數
+                        if (args) {
+                            // 移除引號並解析參數
+                            const cleanArgs = args.split(',').map(arg => {
+                                arg = arg.trim();
+                                if (arg.startsWith("'") && arg.endsWith("'")) {
+                                    return arg.slice(1, -1);
+                                }
+                                if (arg.startsWith('"') && arg.endsWith('"')) {
+                                    return arg.slice(1, -1);
+                                }
+                                if (arg === 'event') {
+                                    return event;
+                                }
+                                return arg;
+                            });
+                            window[functionName](...cleanArgs);
+                        } else {
+                            window[functionName](event);
+                        }
+                    });
+                    
+                    // 移除 onclick 屬性
+                    element.removeAttribute('onclick');
+                }
+            });
+            
+            console.log(`已轉換 ${elementsWithOnclick.length} 個 onclick 為 addEventListener`);
         }
 
         // 載入筆記順序
