@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy" content="script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline';">
     <title>全功能強制寫作筆記本 - 寫作統計、靈感捕捉與目標追蹤</title>
     <style>
         * {
@@ -1428,8 +1429,10 @@
         <div style="text-align: center; margin-bottom: 20px;">
             <button class="btn-info" onclick="openCategoryManager()">管理分類</button>
             <button class="btn-success" onclick="openScheduleManager()">📅 日程管理</button>
+            <button class="btn-warning" onclick="exportData()">📤 導出數據</button>
+            <button class="btn-info" onclick="importData()">📥 導入數據</button>
         </div>
-        
+
         <!-- 導航列 - 快速跳轉用 -->
         <div class="nav-bar" id="navBar">
             <strong>快速跳轉：</strong>
@@ -2316,7 +2319,81 @@
             //     elements.lockScreen.style.display = 'flex';
             // }
         }
-        
+
+        // 導出數據
+        function exportData() {
+            const data = {
+                appEncryptionKey: localStorage.getItem('appEncryptionKey'),
+                notes: localStorage.getItem('notes'),
+                noteDraft: localStorage.getItem('noteDraft'),
+                references: localStorage.getItem('references'),
+                categories: localStorage.getItem('categories'),
+                mindmapTemplates: localStorage.getItem('mindmapTemplates'),
+                writingGoals: localStorage.getItem('writingGoals'),
+                writingEnforcerState: localStorage.getItem('writingEnforcerState'),
+                noteOrder: localStorage.getItem('noteOrder'),
+                exportDate: new Date().toISOString()
+            };
+
+            const dataStr = JSON.stringify(data, null, 2);
+            const dataBlob = new Blob([dataStr], { type: 'application/json' });
+            const url = URL.createObjectURL(dataBlob);
+
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `writing-platform-backup-${new Date().toISOString().split('T')[0]}.json`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+
+            alert('數據導出成功！\n\n請妥善保管此 JSON 文件，您可以將其導入到其他設備或瀏覽器中。');
+        }
+
+        // 導入數據
+        function importData() {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.json';
+
+            input.onchange = function(event) {
+                const file = event.target.files[0];
+                if (!file) return;
+
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    try {
+                        const data = JSON.parse(e.target.result);
+
+                        // 確認導入
+                        if (!confirm(`確認導入數據？\n\n導入日期：${data.exportDate ? new Date(data.exportDate).toLocaleString() : '未知'}\n\n⚠️ 警告：這將覆蓋當前所有數據！`)) {
+                            return;
+                        }
+
+                        // 導入數據
+                        if (data.appEncryptionKey) localStorage.setItem('appEncryptionKey', data.appEncryptionKey);
+                        if (data.notes) localStorage.setItem('notes', data.notes);
+                        if (data.noteDraft) localStorage.setItem('noteDraft', data.noteDraft);
+                        if (data.references) localStorage.setItem('references', data.references);
+                        if (data.categories) localStorage.setItem('categories', data.categories);
+                        if (data.mindmapTemplates) localStorage.setItem('mindmapTemplates', data.mindmapTemplates);
+                        if (data.writingGoals) localStorage.setItem('writingGoals', data.writingGoals);
+                        if (data.writingEnforcerState) localStorage.setItem('writingEnforcerState', data.writingEnforcerState);
+                        if (data.noteOrder) localStorage.setItem('noteOrder', data.noteOrder);
+
+                        alert('數據導入成功！\n\n頁面將重新載入以應用新數據。');
+                        location.reload();
+                    } catch (error) {
+                        alert('導入失敗！\n\n錯誤訊息：' + error.message);
+                        console.error('導入錯誤：', error);
+                    }
+                };
+                reader.readAsText(file);
+            };
+
+            input.click();
+        }
+
         // 儲存筆記 - 移除字數限制，可隨時儲存
         function saveNote() {
             const title = elements.noteTitle.value || '無標題筆記';
